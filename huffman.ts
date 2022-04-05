@@ -118,7 +118,7 @@ class BinaryTree<T> {
   }
 }
 
-export const encodeHuffman = (str): Blob => {
+export const encodeHuffman = (str: string): Blob => {
   const codeArr = [];
   const count: { [key: string]: number } = {};
   const queue = new PQueue<BinaryTree<number>>();
