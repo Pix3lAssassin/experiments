@@ -118,7 +118,7 @@ class BinaryTree<T> {
   }
 }
 
-export const encodeHuffman = (str: string): Blob => {
+const encodeHuffman = (str: string): Uint8Array => {
   const codeArr = [];
   const count: { [key: string]: number } = {};
   const queue = new PQueue<BinaryTree<number>>();
@@ -203,6 +203,10 @@ export const encodeHuffman = (str: string): Blob => {
 
   const position = bitCount % 8;
 
+  if (position === 0) {
+    buffer.push(1);
+  }
+
   let byte = position === 0 ? 0 : 1 << position;
   let offset = position === 0 ? 8 : position;
   let leftOverBits = 0;
@@ -230,33 +234,67 @@ export const encodeHuffman = (str: string): Blob => {
     byte += mappedCode << offset;
   });
 
-  const bytes = new Uint8Array(buffer);
-
-  return new Blob([bytes.buffer]);
+  return new Uint8Array(buffer);
 };
 
-export const decodeHuffman = (str) => {};
+const decodeHuffman = (data: Uint8Array) => {
+  let isTree = true;
+  let runValue = null;
+  let isRun = false;
+  let paddingRemoved = false;
+  let currentPosition = 0;
+  let str = '';
+  const tree = [];
 
-const str =
-  "This is a test!";
-const encodedData = encodeHuffman(str);
-encodedData.arrayBuffer().then((buffer) => {
-  console.log("Buffer: ", buffer);
+  data.forEach((byte) => {
+    if (isTree) {
+      if (byte === 2) {
+        isTree = false;
+      } else if (byte === 26 && !isRun) {
+        isRun = true;
+      } else if (!isRun) {
+        runValue = byte === 27 ? null : byte;
+        tree.push(runValue);
+      } else {
+        tree.push(...Array(byte).fill(runValue));
+        isRun = false;
+      }
+    } else {
+      for (let i = 7; i >= 0; i--) {
+        const bit = (byte & (1 << i)) >>> i;
+        if (paddingRemoved) {
+          currentPosition = currentPosition * 2 + 1 + bit;
 
-  const bytes = new Uint8Array(buffer);
-  const binaryStrArr: string[] = [];
-  bytes.forEach((byte) => {
-    let str = (byte >>> 0).toString(2);
-
-    const zeroPadded = 8 - str.length;
-    for (let i = 0; i < zeroPadded; i++) {
-      str = "0" + str;
+          if (tree[currentPosition]) {
+            str += String.fromCharCode(tree[currentPosition]);
+            currentPosition = 0;
+          }
+        } else {
+          if (bit === 1) {
+            paddingRemoved = true;
+          }
+        }
+      }
     }
-
-    binaryStrArr.push(str);
   });
-  console.log("Binary String: ", binaryStrArr.join(" "));
+
+  return str;
+};
+
+const str = "This is a test!";
+const encodedData = encodeHuffman(str);
+const binaryStrArr: string[] = [];
+encodedData.forEach((byte) => {
+  let str = (byte >>> 0).toString(2);
+
+  const zeroPadded = 8 - str.length;
+  for (let i = 0; i < zeroPadded; i++) {
+    str = "0" + str;
+  }
+
+  binaryStrArr.push(str);
 });
+console.log("Binary String: ", binaryStrArr.join(" "));
 console.log(`Initial String: ${str}, ${str.length}`);
 console.log("Encoded Data: ", encodedData);
-console.log("Decoded String: ", decodeHuffman(encodedData));
+console.log(`Decoded String: ${decodeHuffman(encodedData)}`);
